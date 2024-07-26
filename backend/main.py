@@ -1,35 +1,88 @@
-# pretty the output
-from rich import pretty, print
-from rich.markdown import Markdown
+import uuid
+from typing import Annotated
 
-pretty.install()
+from fastapi import FastAPI, File, Form, UploadFile
+from pydantic import BaseModel
+
+app = FastAPI()
 
 
-# debug mode
-import logging
-import sys
+# @todo in-memory document database, should have id, name, and file src
+class Document(BaseModel):
+    id: str
+    name: str
+    src: str
 
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
-# download the article
-from requests import get
+documents: list[Document] = []
 
-url = "https://gogoout.com/blog/okinawa-tour/"
-response = get(url)
+F = Annotated[
+    UploadFile, File(description="The document which the user wants to upload")
+]
 
-# parse the article into markdown
-from bs4 import BeautifulSoup
-from markdownify import markdownify as md
 
-soup = BeautifulSoup(response.text, "html.parser")
-article = soup.find("article")
-text = md(str(article))
+@app.post("/documents", tags=["documents"])
+def upload_document(document: F):
+    """
+    Upload a document
+    """
 
-from ai.create_index import create_vector_index_from_text
+    doc = Document(
+        id=str(len(documents) + 1),
+        name=document.filename or str(uuid.uuid4()),
+        src="path/to/file",
+    )
 
-index = create_vector_index_from_text(text)
-retriever = index.as_retriever()
+    documents.append(doc)
 
-for node in retriever.retrieve("沖繩自由行安排?"):
-    print(Markdown(node.text))
+    return {"data": doc}
+
+
+@app.get("/documents", tags=["documents"])
+def get_documents():
+    """
+    Get all documents
+    """
+    return {"data": documents}
+
+
+@app.get("/documents/{document_id}", tags=["documents"])
+def get_document(document_id: str):
+    """
+    Get the document by document id
+    """
+    doc = next((doc for doc in documents if doc.id == document_id), None)
+    if not doc:
+        return {"error": "Document not found"}
+    return {"data": doc}
+
+
+@app.put("/documents/{document_id}", tags=["documents"])
+def edit_document(document_id: str, document: F):
+    """
+    Edit the document by document id
+    """
+    doc = next((doc for doc in documents if doc.id == document_id), None)
+    if not doc:
+        return {"error": "Document not found"}
+    return {"data": doc}
+
+
+@app.delete("/documents/{document_id}", tags=["documents"])
+def delete_document(document_id: str):
+    """
+    Delete the document by document id
+    """
+    doc = next((doc for doc in documents if doc.id == document_id), None)
+    if not doc:
+        return {"error": "Document not found"}
+    documents.remove(doc)
+    return {"data": "ok"}
+
+
+@app.post("/questions", tags=["questions"])
+def submit_question(query: str = Form(...)):
+    """
+    Submit one shot q&a
+    """
+    return {"answer": f"answer {query}"}
