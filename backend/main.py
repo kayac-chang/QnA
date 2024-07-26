@@ -4,6 +4,8 @@ from typing import Annotated
 from fastapi import FastAPI, File, Form, UploadFile
 from pydantic import BaseModel
 
+import rag.supabase_index as rag
+
 app = FastAPI()
 
 
@@ -22,7 +24,7 @@ F = Annotated[
 
 
 @app.post("/documents", tags=["documents"])
-def upload_document(document: F):
+async def upload_document(document: F):
     """
     Upload a document
     """
@@ -34,6 +36,12 @@ def upload_document(document: F):
     )
 
     documents.append(doc)
+
+    buf = bytes()
+    while contents := document.file.read(1024 * 1024):
+        buf += contents
+
+    rag.insert_document(str(buf, encoding="utf-8"))
 
     return {"data": doc}
 
@@ -81,8 +89,8 @@ def delete_document(document_id: str):
 
 
 @app.post("/questions", tags=["questions"])
-def submit_question(query: str = Form(...)):
+async def submit_question(query: str = Form(...)):
     """
     Submit one shot q&a
     """
-    return {"answer": f"answer {query}"}
+    return await rag.query(query)
