@@ -38,7 +38,7 @@ The document only need support markdown format.
 
 ## API
 
-### Saving user's markdown.
+### Upload document
 
 ```http
 POST /documents
