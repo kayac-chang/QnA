@@ -1,12 +1,11 @@
 import uuid
 from typing import Annotated
 
+import app.storages.document as storages
 from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel
 from supabase import StorageException
-
-import app.storages.document as storages
 
 
 class Document(BaseModel):
@@ -103,7 +102,7 @@ async def list_documents() -> list[Document]:
             mimetype=file.metadata.mime_type,
             last_modified=file.metadata.last_modified,
         )
-        for file in await storages.list()
+        for file in await storages.get_all()
     ]
 
 

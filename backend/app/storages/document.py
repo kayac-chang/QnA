@@ -1,10 +1,8 @@
 from contextlib import asynccontextmanager
-from typing import List, Union
-
-from pydantic import BaseModel, Field, TypeAdapter
-from supabase import acreate_client
 
 from app.config import settings
+from pydantic import BaseModel, Field, TypeAdapter
+from supabase import acreate_client
 
 bucket_id: str = "demo"
 
@@ -75,14 +73,14 @@ class File(BaseModel):
     metadata: Metadata
 
 
-async def list(path: str | None = None) -> list[File]:
+async def get_all(path: str | None = None) -> list[File]:
     """
-    List all files in the bucket
+    get all files in the bucket
     """
     async with connection() as client:
         res = await client.storage.from_(bucket_id).list(path)
 
-        items = TypeAdapter(List[Union[Folder, File]]).validate_python(res)
+        items = TypeAdapter(list[Folder | File]).validate_python(res)
 
         res = []
         for item in items:
@@ -91,7 +89,7 @@ async def list(path: str | None = None) -> list[File]:
             match item:
                 # Recursively list the folder
                 case Folder():
-                    res.extend(await list(_path))
+                    res.extend(await get_all(_path))
                 # Skip the placeholder file
                 case File(name=".emptyFolderPlaceholder"):
                     continue
