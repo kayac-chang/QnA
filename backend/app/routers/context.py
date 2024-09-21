@@ -59,13 +59,26 @@ async def create_context(request: ContextCreateRequest) -> str:
     )
 
     try:
-        # generate embeddings for the sources
-        generated_embeddings = await embeddings.generate(
-            input=request.sources, model=request.embedding_model
-        )
 
-        # add the generated embeddings to the context
-        await stores[id].vector_store.add(*generated_embeddings)
+        async def add_to_store(*sources: str):
+            existed_sources = [
+                embedding.source
+                for embedding in await stores[id].vector_store.get_all_by_sources(
+                    *sources
+                )
+            ]
+            new_sources = list(set(sources) - set(existed_sources))
+
+            # generate embeddings for the sources
+            generated_embeddings = await embeddings.generate(
+                input=new_sources, model=request.embedding_model
+            )
+
+            # add the generated embeddings to the context
+            await stores[id].vector_store.add(*generated_embeddings)
+
+        # add the sources to the store
+        await add_to_store(*request.sources)
 
         # return the id of the context
         return str(id)
@@ -81,7 +94,7 @@ async def create_context(request: ContextCreateRequest) -> str:
 
 @router.get("/{context_id}/search")
 async def search(
-    context_id: UUID, query: str, k: int = 1
+    context_id: UUID, query: str, k: int | None
 ) -> list[models.SimilarityResult]:
     # find context by id
     context = stores.get(context_id)
@@ -97,3 +110,7 @@ async def search(
 
     # search the store for the query embedding
     return await context.vector_store.search(query_embedding[0], k=k)
+
+
+@router.get("/{context_id}/qna")
+async def qna(context_id: UUID, question: str): ...

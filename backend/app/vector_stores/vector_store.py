@@ -11,5 +11,13 @@ class VectorStore(Protocol):
         raise NotImplementedError
 
     @abstractmethod
-    async def search(self, query: Embedding, k: int = 1) -> list[SimilarityResult]:
+    async def search(self, query: Embedding, k: int | None) -> list[SimilarityResult]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_all_by_sources(self, *sources: str) -> list[Embedding]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def exist(self, source: str) -> bool:
         raise NotImplementedError
