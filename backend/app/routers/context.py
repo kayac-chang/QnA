@@ -3,6 +3,7 @@ from uuid import UUID, uuid4
 
 import app.constants as CONST
 import app.models as models
+import app.services.completions as completions
 import app.services.embeddings as embeddings
 import app.vector_stores as vector_stores
 from fastapi import APIRouter, HTTPException
@@ -105,7 +106,7 @@ async def search(
 
     # generate embeddings for the query
     query_embedding = await embeddings.generate(
-        input=[query], model=context.embedding_model
+        input=query, model=context.embedding_model
     )
 
     # search the store for the query embedding
@@ -113,4 +114,11 @@ async def search(
 
 
 @router.get("/{context_id}/qna")
-async def qna(context_id: UUID, question: str): ...
+async def qna(context_id: UUID, question: str):
+
+    results = await search(context_id=context_id, query=question, k=3)
+
+    # call qna service to get the answers
+    return await completions.qna(
+        question=question, context=[result.source for result in results]
+    )
